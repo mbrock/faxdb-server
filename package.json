@@ -1,0 +1,22 @@
+{
+  "name": "faxdb-server",
+  "version": "0.0.1",
+  "description": "faxdb as a Node server library",
+  "author": "Mikael Brockman",
+  "scripts": {
+    "compile": "make",
+    "test": "make test"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mbrock/faxdb-server"
+  },
+  "devDependencies": {
+    "babel": "^6.3.26",
+    "babel-cli": "^6.4.0",
+    "babel-preset-stage-2": "^6.3.13"
+  },
+  "dependencies": {
+  }
+}
