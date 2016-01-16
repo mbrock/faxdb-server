@@ -51,6 +51,65 @@ var defaultConfiguration = {
   }
 }
 
+function fetchDocument(response, configuration, id) {
+  configuration.fetchDocument(id).then(document => {
+    if (document) {
+      respondWithValidatedJson(
+        response,
+        { document: document },
+        validateCloneSchema
+      )
+    } else {
+      respond(response, 404)
+    }
+  }).catch(error => {
+    console.warn(error.stack)
+    respond(response, 500)
+  })
+}
+
+function postCommit(response, configuration, id, request) {
+  slurpJSON(request).then(body => {
+    if (validateCommitSchema(body)) {
+      configuration.saveCommit(id, body.commit).then(ok => {
+        if (ok) {
+          respond(response, 200)
+        } else {
+          respond(response, 409)
+        }
+      }).catch(error => {
+        respond(response, 500)
+      })
+    } else {
+      respond(response, 400, JSON.stringify({
+        object: body,
+        errors: validateCommitSchema.errors
+      }))
+    }
+  }).catch(error => {
+    console.warn(error.stack)
+    respond(response, 500)
+  })
+}
+
+function handleAuthenticatedRequest (response, configuration, request) {
+  if (request.method == "GET") {
+    if (request.url == "/") {
+      respond(response, 404)
+    } else if (request.url.match(/^\/([^/]+)$/)) {
+      fetchDocument(response, configuration, RegExp.$1)
+    } else {
+      respond(response, 404, "Hello, world!\n")
+    }
+  } else if (request.method == "POST") {
+    if (request.url.match(/^\/([^/]+)$/)) {
+      postCommit(response, configuration, RegExp.$1, request)
+    } else {
+      respond(response, 400)
+    }
+  }
+}
+
 export function create(givenConfiguration) {
   var configuration = {}
   Object.assign(configuration, defaultConfiguration, givenConfiguration)
@@ -58,58 +117,12 @@ export function create(givenConfiguration) {
     resolve((request, response) => {
       configuration.authenticate(request).then(ok => {
         if (ok) {
-          if (request.method == "GET") {
-            if (request.url == "/") {
-              respond(response, 404)
-            } else if (request.url.match(/^\/([^/]+)$/)) {
-              configuration.fetchDocument(RegExp.$1).then(document => {
-                if (document) {
-                  respondWithValidatedJson(
-                    response,
-                    { document: document },
-                    validateCloneSchema
-                  )
-                } else {
-                  respond(response, 404)
-                }
-              }).catch(error => {
-                console.warn(error.stack)
-                respond(response, 500)
-              })
-            } else {
-              respond(response, 404, "Hello, world!\n")
-            }
-          } else if (request.method == "POST") {
-            if (request.url.match(/^\/([^/]+)$/)) {
-              var id = RegExp.$1
-              slurpJSON(request).then(body => {
-                if (validateCommitSchema(body)) {
-                  configuration.saveCommit(id, body.commit).then(success => {
-                    if (success) {
-                      respond(response, 200)
-                    } else {
-                      respond(response, 409)
-                    }
-                  }).catch(error => {
-                    respond(response, 500)
-                  })
-                } else {
-                  respond(response, 400, JSON.stringify({
-                    object: body,
-                    errors: validateCommitSchema.errors
-                  }))
-                }
-              }).catch(error => {
-                console.warn(error.stack)
-                respond(response, 500)
-              })
-            } else {
-              respond(response, 400)
-            }
-          }
+          handleAuthenticatedRequest(response, configuration, request)
         } else {
           respond(response, 403)
         }
+      }).catch(error => {
+        respond(response, 500)
       })
     })
   })
