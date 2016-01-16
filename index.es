@@ -10,9 +10,12 @@
 let createHash = require("sha.js")
 
 export function create(options) {
-  return (request, response) => {
-    response.end("Hello, world!\n")
-  }
+  return new Promise((resolve, reject) => {
+    resolve((request, response) => {
+      response.statusCode = 404
+      response.end("Hello, world!\n")
+    })
+  })
 }
 
 export function hash(operations, oldHash) {

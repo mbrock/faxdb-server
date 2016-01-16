@@ -15,11 +15,11 @@ assert.equal(
   "e9c24f86b79b07a943aeacce1929a7caecd89f57"
 )
 
-let fax = faxdb.create()
-let server = require("http").createServer(fax)
+faxdb.create().then(fax => {
+  let server = require("http").createServer(fax)
 
-server.listen()
-server.on("listening", () => {
-  console.log(`${server.address().port} ${process.pid}`)
+  server.listen()
+  server.on("listening", () => {
+    console.log(`${server.address().port} ${process.pid}`)
+  })
 })
-
