@@ -1,6 +1,6 @@
-module.exports = function () {
-  this.World = function World () {
-    this.getResult = function () {
+module.exports = function() {
+  this.World = function World() {
+    this.getResult = function() {
       var text = this.response._internal.buffer.toString()
       try {      
         var json = JSON.parse(text)

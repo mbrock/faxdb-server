@@ -7,19 +7,19 @@ var assert = require("assert")
 
 var database
 
-function setupFolderDatabase () {
+function setupFolderDatabase() {
   database = faxMemory.create(folderExample)
 }
 
-function tableToOperations (table) {
-  return table.rows().map(function (row) {
+function tableToOperations(table) {
+  return table.rows().map(function(row) {
     return { type: row[0], payload: row[1] }
   })
 }
 
-function tableToCommitSequence (table) {
+function tableToCommitSequence(table) {
   var parent = null
-  return tableToOperations(table).map(function (operation) {
+  return tableToOperations(table).map(function(operation) {
     var commit = {
       parent: parent,
       operations: [operation]
@@ -29,10 +29,10 @@ function tableToCommitSequence (table) {
   })
 }
 
-function folderServerConfiguration () {
+function folderServerConfiguration() {
   return {
-    authenticate: function (request) {
-      return new Promise(function (resolve, reject) {
+    authenticate: function(request) {
+      return new Promise(function(resolve, reject) {
         if (request.getHeader("X-User"))
           resolve(true)
         else
@@ -46,7 +46,7 @@ function folderServerConfiguration () {
 }
 
 module.exports = function() {
-  this.Given(/^the folder server test environment$/, function () {
+  this.Given(/^the folder server test environment$/, function() {
     var world = this
     setupFolderDatabase()
     return faxdb.create(folderServerConfiguration()).then(function(fax) {
@@ -56,7 +56,7 @@ module.exports = function() {
 
   this.Given(
     /^there is a folder named "([^"]*)" with id "([^"]*)"$/,
-    function (name, id) {
+    function(name, id) {
       var operations = [{ type: "rename", payload: name }]
       database.setDocument(id, {
         commits: [
@@ -69,7 +69,7 @@ module.exports = function() {
     }
   )
   
-  this.When(/^I am logged in as John$/, function () {
+  this.When(/^I am logged in as John$/, function() {
     delete this.response
     this.request = {
       headers: {
@@ -78,24 +78,24 @@ module.exports = function() {
     }
   })
 
-  this.When(/^I make an unauthenticated request$/, function () {
+  this.When(/^I make an unauthenticated request$/, function() {
     delete this.response
     this.request = {}
   })
   
-  this.When(/^I request the document "([^"]*)"$/, function (id) {
+  this.When(/^I request the document "([^"]*)"$/, function(id) {
     this.request.method = "GET"
     this.request.url = "/" + id
   })
 
-  this.When(/^I request the URL "([^"]*)"$/, function (url) {
+  this.When(/^I request the URL "([^"]*)"$/, function(url) {
     this.request.method = "GET"
     this.request.url = url
   })
 
   this.When(
     /^I request an update to "([^"]*)" with operations:$/,
-    function (id, table) {
+    function(id, table) {
       var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
       var operations = tableToOperations(table)
@@ -115,7 +115,7 @@ module.exports = function() {
   
   this.When(
     /^I request a conflicting update to "([^"]*)" with operations:$/,
-    function (id, table) {
+    function(id, table) {
       var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
       var operations = tableToOperations(table)
@@ -137,7 +137,7 @@ module.exports = function() {
   
   this.When(
     /^I request a bogus update to "([^"]*)"$/,
-    function (id) {
+    function(id) {
       var body = JSON.stringify({
         bogus: "nonsense"
       })
@@ -148,7 +148,7 @@ module.exports = function() {
     }
   )
   
-  this.Then(/^the response status is (\d+)$/, function (expectedStatus) {
+  this.Then(/^the response status is (\d+)$/, function(expectedStatus) {
     var world = this
     var request = new mockHttp.Request(world.request)
 
@@ -177,7 +177,7 @@ module.exports = function() {
 
   this.Then(
     /^the result is a folder document named "([^"]*)"$/,
-    function (expectedName) {
+    function(expectedName) {
       var result = this.getResult()
       assert.deepEqual(result.document.state, {
         name: expectedName
@@ -187,7 +187,7 @@ module.exports = function() {
 
   this.Then(
     /^the result has a hash that matches commits:$/,
-    function (table) {
+    function(table) {
       var result = this.getResult()
       var commits = tableToCommitSequence(table)
       var hash = faxdb.hash(commits[commits.length - 1])
@@ -197,7 +197,7 @@ module.exports = function() {
 
   this.Then(
     /^the document "([^"]+)" has commits:$/,
-    function (id, table) {
+    function(id, table) {
       assert.deepEqual(
         database.getDocument(id).commits,
         tableToCommitSequence(table)

@@ -8,7 +8,7 @@
 // of the MIT license.  See the LICENSE file for details.
 
 module.exports = {
-  applyOperation: function (state, operation) {
+  applyOperation: function(state, operation) {
     if (operation.type == "rename")
       return Object.assign({}, state, { name: operation.payload })
     else

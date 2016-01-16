@@ -10,7 +10,7 @@
 let createHash = require("sha.js")
 let ajv = require("ajv")()
 
-let validator = function (schema) {
+let validator = function(schema) {
   return ajv.compile(schema)
 }
 
@@ -18,7 +18,7 @@ let schema = require("./schema")
 let validateCommitSchema = validator(schema.singleCommit)
 let validateCloneSchema = validator(schema.shallowDocumentClone)
 
-function respondWithValidatedJson (response, object, validator) {
+function respondWithValidatedJson(response, object, validator) {
   if (validator(object)) {
     respond(response, 200, JSON.stringify(object))
   } else {
@@ -30,26 +30,26 @@ function respondWithValidatedJson (response, object, validator) {
   }
 }
 
-function respond (response, code, message) {
+function respond(response, code, message) {
   response.statusCode = code
   response.end(message)
 }
 
 var defaultConfiguration = {
-  authenticate: function () {
-    return new Promise(function (resolve) {
+  authenticate: function() {
+    return new Promise(function(resolve) {
       resolve(true)
     })
   },
 
-  fetchDocument: function () {
-    return new Promise(function (resolve) {
+  fetchDocument: function() {
+    return new Promise(function(resolve) {
       resolve(false)
     })
   },
 
-  saveCommit: function () {
-    return new Promise(function (resolve) {
+  saveCommit: function() {
+    return new Promise(function(resolve) {
       resolve(false)
     })
   }
@@ -96,7 +96,7 @@ function postCommit(response, configuration, id, request) {
   })
 }
 
-function handleAuthenticatedRequest (response, configuration, request) {
+function handleAuthenticatedRequest(response, configuration, request) {
   if (request.method == "GET") {
     if (request.url == "/") {
       respond(response, 404)
@@ -152,19 +152,19 @@ function slurpJSON(request) {
   })
 }
 
-function flatten (arrayOfArrays) {
-  return arrayOfArrays.reduce(function (a, b) {
+function flatten(arrayOfArrays) {
+  return arrayOfArrays.reduce(function(a, b) {
     return a.concat(b)
   }, [])
 }
 
-export function getAllOperationsInCommitSequence (commits) {
-  return flatten(commits.map(function (x) {
+export function getAllOperationsInCommitSequence(commits) {
+  return flatten(commits.map(function(x) {
     return x.operations
   }))
 }
 
-export function applyCommitSequence (commits, applyOperation) {
+export function applyCommitSequence(commits, applyOperation) {
   var operations = getAllOperationsInCommitSequence(commits)
   if (operations.length == 1)
     return applyOperation({}, operations[0])

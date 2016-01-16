@@ -9,24 +9,24 @@
 
 import * as faxdb from "./index"
 
-function getHead (commits) {
+function getHead(commits) {
   return faxdb.hash(commits[commits.length - 1])
 }
 
-export function create (configuration) {
+export function create(configuration) {
   var database = { documents: {} }
 
   return {
-    setDocument: function (id, document) {
+    setDocument: function(id, document) {
       database.documents[id] = document
     },
 
-    getDocument: function (id) {
+    getDocument: function(id) {
       return database.documents[id]
     },
 
-    saveCommit: function (id, commit) {
-      return new Promise(function (resolve, reject) {
+    saveCommit: function(id, commit) {
+      return new Promise(function(resolve, reject) {
         var document = database.documents[id]
         var head = faxdb.hash(document.commits[document.commits.length - 1])
         if (head == commit.parent) {
@@ -38,8 +38,8 @@ export function create (configuration) {
       })
     },
 
-    fetchDocument: function (id) {
-      return new Promise(function (resolve, reject) {
+    fetchDocument: function(id) {
+      return new Promise(function(resolve, reject) {
         if (database.documents.hasOwnProperty(id)) {
           var document = database.documents[id]
     
