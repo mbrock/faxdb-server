@@ -5,7 +5,7 @@
   "author": "Mikael Brockman",
   "scripts": {
     "prepublish": "make",
-    "test": "make test"
+    "test": "make test format=json"
   },
   "license": "MIT",
   "repository": {
