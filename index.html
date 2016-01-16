@@ -1,0 +1,211 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Faxdb-server by mbrock</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Faxdb-server</h1>
+        <p>Node version of faxdb-server</p>
+
+        <p class="view"><a href="https://github.com/mbrock/faxdb-server">View the Project on GitHub <small>mbrock/faxdb-server</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/mbrock/faxdb-server/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/mbrock/faxdb-server/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/mbrock/faxdb-server">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="fax-a-semi-centralized-synchronization-system" class="anchor" href="#fax-a-semi-centralized-synchronization-system" aria-hidden="true"><span class="octicon octicon-link"></span></a>Fax: a semi-centralized synchronization system</h1>
+
+<p><a href="https://circleci.com/gh/mbrock/faxdb-server"><img src="https://circleci.com/gh/mbrock/faxdb-server.svg?style=svg" alt="Circle CI"></a></p>
+
+<p>Fax is concerned with synchronizing facts in real-time among web
+clients, using a central consensus server, and with eventual consistency
+feeding some slower indexing database.</p>
+
+<p>Technically, it's similar to a Git repository server, except made for
+real-time web app synchronization via JSON.</p>
+
+<h2>
+<a id="values" class="anchor" href="#values" aria-hidden="true"><span class="octicon octicon-link"></span></a>Values</h2>
+
+<ol>
+<li><p>Simplicity: it should be possible to understand, because if it breaks
+or misbehaves, your users will be immediately confused.</p></li>
+<li><p>Correctness: the behavior of the system should be clear and
+well-defined, and there should be good reason to believe that the
+implementation does what it's supposed to.</p></li>
+<li><p>Speed: the faster the entire network can synchronize, the better,
+though latency is optimized for quick acknowledgement to the user.</p></li>
+<li><p>Portability: simple protocols and a basic implementation in
+plain JavaScript.</p></li>
+<li><p>Offline-friendliness: the ability to do work without constant
+synchronization is good for robustness and speed and enables new
+use cases.</p></li>
+<li><p>Transparency: the system should be easy to trace, analyze,
+and recover.</p></li>
+</ol>
+
+<h2>
+<a id="structure" class="anchor" href="#structure" aria-hidden="true"><span class="octicon octicon-link"></span></a>Structure</h2>
+
+<p>A system instance consists of a server and a set of clients.
+Each client is logged in as a user.  The server has many different
+"documents" with universally unique identifiers.  Such a document is
+defined by a sequence of committed operations, much like a Git
+repository.</p>
+
+<p>Initially, we will require these repositories to be linear, having no
+branches, but relaxing that requirement is an interesting possibility.
+We use Git-style content addressing to ensure integrity and ordering.
+Thus clients may need to "rebase" their operations if their document has
+changed, in effect pessimistic locking.  If the server has some
+understanding of the semantics of a document, it can be told to
+"auto-rebase" in specific ways, which reduces round-trips.</p>
+
+<p>There is also a notion of state, defined for each document version by a
+deterministic function applied iteratively to the operation sequence,
+given an initial state.  This is so that clients can do a "shallow
+clone" of a document by downloading its state and the hash of its most
+recent commit.  When synchronizing later, they can request the operation
+suffixes necessary to update their saved document states.</p>
+
+<p>For example, a document representing a folder might consist of add and
+remove operations, and the state is defined as the resulting folder.
+The server caches that state in some way, so the client can just get the
+latest folder contents.</p>
+
+<h2>
+<a id="protocol" class="anchor" href="#protocol" aria-hidden="true"><span class="octicon octicon-link"></span></a>Protocol</h2>
+
+<p>The server exposes this API:</p>
+
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Input</th>
+<th>Output</th>
+<th>Content-Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>GET /</code></td>
+<td>---</td>
+<td><code>{ [document]: { head, state } }</code></td>
+<td>application/json</td>
+</tr>
+<tr>
+<td><code>GET /:document:</code></td>
+<td>---</td>
+<td><code>{ head, state }</code></td>
+<td>application/json</td>
+</tr>
+<tr>
+<td><code>POST /:document:</code></td>
+<td><code>{ hash, operations }</code></td>
+<td>---</td>
+<td>application/json</td>
+</tr>
+<tr>
+<td><code>GET /:document:/:hash:</code></td>
+<td>---</td>
+<td><code>{ head, operations }</code></td>
+<td>text/event-stream</td>
+</tr>
+</tbody>
+</table>
+
+<p>The metavariable <code>head</code> is a cryptographic hash of the document,
+described below.</p>
+
+<p>The root path content is based on HTTP headers, which presumably are
+added based by a proxy based on user authentication. For example
+<code>X-User: john</code> makes the root return all the documents that user <code>john</code>
+is interested in).</p>
+
+<h3>
+<a id="hashing" class="anchor" href="#hashing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hashing</h3>
+
+<p>Hashing is based on the JSON representations of operations in a
+well-defined and incremental way:</p>
+
+<pre><code>f(operations, old-hash) = hash(old-hash ++ to-json(operations))
+</code></pre>
+
+<p>The <code>hash</code> function is SHA256 truncated to 160 bits, rendered as 40
+characters of lowercase hexadecimal ASCII/UTF-8.  (Git hashes are
+similar but with 40 chars of SHA1, which is considered feasibly
+crackable, so SHA256/160 seems reasonable enough.)</p>
+
+<h3>
+<a id="inserting" class="anchor" href="#inserting" aria-hidden="true"><span class="octicon octicon-link"></span></a>Inserting</h3>
+
+<p>A request to <code>POST /:document:</code> will be <code>200 OK</code> if the server accepts
+and commits the provided hash and operations, judging them a valid
+extension of the document.</p>
+
+<p>If the server finds that the given hash is incorrect---i.e., not the
+same as the server's calculation of <code>f(new-operations, old-hash)</code> (as
+described above)---then the response status code is <code>409 Conflict</code>, and
+the response body is, conveniently, the info needed for a client to
+rebase: namely, the server's committed operation suffix after
+<code>old-hash</code>, in the form <code>{ operations }</code>.</p>
+
+<h3>
+<a id="streaming" class="anchor" href="#streaming" aria-hidden="true"><span class="octicon octicon-link"></span></a>Streaming</h3>
+
+<p>Not too complicated.</p>
+
+<h2>
+<a id="server-configuration" class="anchor" href="#server-configuration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Server Configuration</h2>
+
+<p>The server is library code.  You instantiate it with function parameters
+for configuring:</p>
+
+<ol>
+<li>how to retrieve all the documents relevant to a root request;</li>
+<li>how to execute operations, by validating and (immutably) updating
+state;</li>
+<li>how to load documents and update them transactionally (e.g. in memory
+or an RDBMS); and</li>
+<li>how to store and load state.</li>
+</ol>
+
+<div class="highlight highlight-source-js"><pre><span class="pl-en">fax</span>({
+  pickDocuments,
+  executeOperations,
+  commitStore<span class="pl-k">:</span> {
+    saveCommit,
+    loadCommitSuffix,
+  },
+  stateStore<span class="pl-k">:</span> {
+    saveState,
+    loadState
+  }
+})</pre></div>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/mbrock">mbrock</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
