@@ -16,16 +16,19 @@ let validateCloneSchema = validator(schema.shallowDocumentClone)
 
 function respondWithValidatedJson (response, object, validator) {
   if (validator(object)) {
-    response.statusCode = 200
-    response.end(JSON.stringify(object))
+    respond(response, 200, JSON.stringify(object))
   } else {
-    response.statusCode = 500
-    response.end()
+    respond(response, 500)
     console.warn(JSON.stringify({
       errors: validator.errors,
       object: object
     }))
   }
+}
+
+function respond (response, code, message) {
+  response.statusCode = code
+  response.end(message)
 }
 
 var defaultConfiguration = {
@@ -57,8 +60,7 @@ export function create(givenConfiguration) {
         if (ok) {
           if (request.method == "GET") {
             if (request.url == "/") {
-              response.statusCode = 404
-              response.end()
+              respond(response, 404)
             } else if (request.url.match(/^\/([^/]+)$/)) {
               configuration.fetchDocument(RegExp.$1).then(document => {
                 if (document) {
@@ -68,55 +70,45 @@ export function create(givenConfiguration) {
                     validateCloneSchema
                   )
                 } else {
-                  response.statusCode = 404
-                  response.end()
+                  respond(response, 404)
                 }
               }).catch(error => {
                 console.warn(error.stack)
-                response.statusCode = 500
-                response.end()
+                respond(response, 500)
               })
-          } else {
-            response.statusCode = 404
-            response.end("Hello, world!\n")
+            } else {
+              respond(response, 404, "Hello, world!\n")
+            }
+          } else if (request.method == "POST") {
+            if (request.url.match(/^\/([^/]+)$/)) {
+              var id = RegExp.$1
+              slurpJSON(request).then(body => {
+                if (validateCommitSchema(body)) {
+                  configuration.saveCommit(id, body.commit).then(success => {
+                    if (success) {
+                      respond(response, 200)
+                    } else {
+                      respond(response, 409)
+                    }
+                  }).catch(error => {
+                    respond(response, 500)
+                  })
+                } else {
+                  respond(response, 400, JSON.stringify({
+                    object: body,
+                    errors: validateCommitSchema.errors
+                  }))
+                }
+              }).catch(error => {
+                console.warn(error.stack)
+                respond(response, 500)
+              })
+            } else {
+              respond(response, 400)
+            }
           }
-        } else if (request.method == "POST") {
-          if (request.url.match(/^\/([^/]+)$/)) {
-            var id = RegExp.$1
-            slurpJSON(request).then(body => {
-              if (validateCommitSchema(body)) {
-                configuration.saveCommit(id, body.commit).then(success => {
-                  if (success) {
-                    response.statusCode = 200
-                    response.end()
-                  } else {
-                    response.statusCode = 409
-                    response.end()
-                  }
-                }).catch(error => {
-                  response.statusCode = 500
-                  response.end()
-                })
-              } else {
-                response.statusCode = 400
-                response.end(JSON.stringify({
-                  object: body,
-                  errors: validateCommitSchema.errors
-                }))
-              }
-            }).catch(error => {
-              console.warn(error.stack)
-              response.statusCode = 500
-              response.end()
-            })
-          } else {
-            response.statusCode = 400
-            response.end()
-          }
-        }
-      } else {
-          response.statusCode = 403
-          response.end()
+        } else {
+          respond(response, 403)
         }
       })
     })
