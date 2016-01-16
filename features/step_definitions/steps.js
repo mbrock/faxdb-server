@@ -27,27 +27,33 @@ function flatten (arrayOfArrays) {
 }
 
 function applyFolderCommitSequence (commits) {
-  var operations = flatten(commits)
+  operations = flatten(commits.map(function (x) {
+    return x.operations
+  }))
   if (operations.length == 1)
     return applyFolderOperation({}, operations[0])
   else
     return operations.reduce(applyFolderOperation, {})
 }
 
-function hashCommit (previous, operations) {
-  return faxdb.hash(operations, previous)
+function hashCommit (commit) {
+  return faxdb.hash(commit.operations, commit.parent)
 }
 
 function hashCommitSequence (commits) {
-  if (commits.length == 1)
-    return hashCommit("", commits[0])
-  else
-    return commits.reduce(hashCommit, "")
+  // XXX: should verify
+  return hashCommit(commits[commits.length - 1])
 }
 
 function tableToCommitSequence (table) {
+  var parent = null
   return table.rows().map(function (row) {
-    return [{ type: row[0], payload: row[1] }]
+    var commit = {
+      parent: parent,
+      operations: [{ type: row[0], payload: row[1] }]
+    }
+    parent = hashCommit(commit)
+    return commit
   })
 }
 
@@ -61,11 +67,12 @@ var folderServerConfiguration = {
     })
   },
 
-  saveCommit: function (id, parent, commit) {
+  saveCommit: function (id, commit) {
     return new Promise(function (resolve, reject) {
       var document = database.documents[id]
-      if (hashCommitSequence(document.commits) == parent) {
-        database.documents[id].commits.push(commit.operations)
+      var head = hashCommit(document.commits[document.commits.length - 1])
+      if (head == commit.parent) {
+        database.documents[id].commits.push(commit)
         resolve(true)
       } else {
         resolve(false)
@@ -80,7 +87,7 @@ var folderServerConfiguration = {
 
         try {
           resolve({
-            hash: hashCommitSequence(document.commits),
+            head: hashCommitSequence(document.commits),
             state: applyFolderCommitSequence(document.commits)
           })
         } catch (error) {
@@ -105,9 +112,13 @@ module.exports = function() {
   this.Given(
     /^there is a folder named "([^"]*)" with id "([^"]*)"$/,
     function (name, id) {
+      var operations = [{ type: "rename", payload: name }]
       database.documents[id] = {
         commits: [
-          [{ type: "rename", payload: name }]
+          {
+            parent: null,
+            operations: operations,
+          }
         ]
       }
     }
@@ -132,12 +143,25 @@ module.exports = function() {
     this.request.url = "/" + id
   })
 
+  this.When(/^the request is for the URL "([^"]*)"$/, function (url) {
+    this.request.method = "GET"
+    this.request.url = url
+  })
+
   this.When(
     /^the request is an update to "([^"]*)" with operations:$/,
     function (id, table) {
+      var commits = database.documents[id].commits
+      var parent = commits[commits.length - 1]
+      var operations = flatten(tableToCommitSequence(table).map(function (x) {
+        return x.operations
+      }))
+
       var body = JSON.stringify({
-        operations: flatten(tableToCommitSequence(table)),
-        hash: hashCommitSequence(database.documents[id].commits)
+        commit: {
+          parent: hashCommit(parent),
+          operations: operations
+        }
       })
 
       this.request.method = "POST"
@@ -149,9 +173,30 @@ module.exports = function() {
   this.When(
     /^the request is a conflicting update to "([^"]*)" with operations:$/,
     function (id, table) {
+      var commits = database.documents[id].commits
+      var parent = commits[commits.length - 1]
+      var operations = flatten(tableToCommitSequence(table))
       var body = JSON.stringify({
-        operations: flatten(tableToCommitSequence(table)),
-        hash: hashCommitSequence([{ type: "bogus" }])
+        commit: {
+          parent: hashCommit({
+            parent: parent,
+            operations: [{ type: "bogus" }]
+          }),
+          operations: operations,
+        }
+      })
+
+      this.request.method = "POST"
+      this.request.url = "/" + id
+      this.request.buffer = new Buffer(body)
+    }
+  )
+  
+  this.When(
+    /^the request is a bogus update to "([^"]*)"$/,
+    function (id) {
+      var body = JSON.stringify({
+        bogus: "nonsense"
       })
 
       this.request.method = "POST"
@@ -176,6 +221,9 @@ module.exports = function() {
             world.response = response
             resolve()
           } catch (error) {
+            if (response.statusCode != 200) {
+              console.warn(response._internal.buffer.toString())
+            }
             reject(error)
           }
         }
@@ -188,7 +236,7 @@ module.exports = function() {
     /^the result is a folder document named "([^"]*)"$/,
     function (expectedName) {
       var result = this.getResult()
-      assert.deepEqual(result.state, {
+      assert.deepEqual(result.document.state, {
         name: expectedName
       })
     }
@@ -199,7 +247,7 @@ module.exports = function() {
     function (table) {
       var result = this.getResult()
       var hash = hashCommitSequence(tableToCommitSequence(table))
-      assert.deepEqual(result.hash, hash)
+      assert.deepEqual(result.document.head, hash)
     }
   )
 

@@ -8,6 +8,25 @@
 // of the MIT license.  See the LICENSE file for details.
 
 let createHash = require("sha.js")
+let validator = require("is-my-json-valid")
+
+let schema = require("./schema")
+let validateCommitSchema = validator(schema.singleCommit)
+let validateCloneSchema = validator(schema.shallowDocumentClone)
+
+function respondWithValidatedJson (response, object, validator) {
+  if (validator(object)) {
+    response.statusCode = 200
+    response.end(JSON.stringify(object))
+  } else {
+    response.statusCode = 500
+    response.end()
+    console.warn(JSON.stringify({
+      errors: validator.errors,
+      object: object
+    }))
+  }
+}
 
 var defaultConfiguration = {
   authenticate: function (request) {
@@ -43,8 +62,11 @@ export function create(givenConfiguration) {
             } else if (request.url.match(/^\/([^/]+)$/)) {
               configuration.fetchDocument(RegExp.$1).then(document => {
                 if (document) {
-                  response.statusCode = 200
-                  response.end(JSON.stringify(document))
+                  respondWithValidatedJson(
+                    response,
+                    { document: document },
+                    validateCloneSchema
+                  )
                 } else {
                   response.statusCode = 404
                   response.end()
@@ -58,15 +80,12 @@ export function create(givenConfiguration) {
             response.statusCode = 404
             response.end("Hello, world!\n")
           }
-        } else {
+        } else if (request.method == "POST") {
           if (request.url.match(/^\/([^/]+)$/)) {
             var id = RegExp.$1
             slurpJSON(request).then(body => {
-              configuration.fetchDocument(id).then(document => {
-                configuration.saveCommit(id, body.hash, {
-                  hash: hash(body.operations, document.hash),
-                  operations: body.operations
-                }).then(success => {
+              if (validateCommitSchema(body)) {
+                configuration.saveCommit(id, body.commit).then(success => {
                   if (success) {
                     response.statusCode = 200
                     response.end()
@@ -78,11 +97,13 @@ export function create(givenConfiguration) {
                   response.statusCode = 500
                   response.end()
                 })
-              }).catch(error => {
-                console.warn(error.stack)
-                response.statusCode = 500
-                response.end()
-              })
+              } else {
+                response.statusCode = 400
+                response.end(JSON.stringify({
+                  object: body,
+                  errors: validateCommitSchema.errors
+                }))
+              }
             }).catch(error => {
               console.warn(error.stack)
               response.statusCode = 500

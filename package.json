@@ -18,9 +18,11 @@
     "babel-plugin-transform-es2015-modules-commonjs": "^6.4.0",
     "babel-preset-stage-2": "^6.3.13",
     "cucumber": "^0.9.2",
+    "json-schema-to-markdown": "^1.0.1",
     "mock-http": "0.0.9"
   },
   "dependencies": {
+    "is-my-json-valid": "^2.12.3",
     "sha.js": "^2.4.4"
   }
 }

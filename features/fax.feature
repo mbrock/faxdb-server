@@ -16,6 +16,13 @@ Feature: The Fax server works correctly
     And the request is for the document "foo"
     Then the response status is 404
 
+  Scenario: Request for bogus path yields 404
+    Given the folder server test environment
+    When there is a folder named "X" with id "1"
+    When I make a request as John
+    And the request is for the URL "/1/foo"
+    Then the response status is 404
+
   Scenario: Request for empty folder yields correct state
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
@@ -58,3 +65,10 @@ Feature: The Fax server works correctly
     And the document "todo" has commits:
       | Type   | Payload |
       | rename | TODO    |
+
+  Scenario: Bogus updates are detected
+    Given the folder server test environment
+    When there is a folder named "TODO" with id "todo"
+    And I make a request as John
+    And the request is a bogus update to "todo"
+    Then the response status is 400
