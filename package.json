@@ -22,7 +22,7 @@
     "mock-http": "0.0.9"
   },
   "dependencies": {
-    "is-my-json-valid": "^2.12.3",
+    "ajv": "^3.3.1",
     "sha.js": "^2.4.4"
   }
 }

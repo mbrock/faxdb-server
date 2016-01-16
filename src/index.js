@@ -8,7 +8,11 @@
 // of the MIT license.  See the LICENSE file for details.
 
 let createHash = require("sha.js")
-let validator = require("is-my-json-valid")
+let ajv = require("ajv")()
+
+let validator = function (schema) {
+  return ajv.compile(schema)
+}
 
 let schema = require("./schema")
 let validateCommitSchema = validator(schema.singleCommit)
