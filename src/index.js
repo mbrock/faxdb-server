@@ -36,19 +36,19 @@ function respond (response, code, message) {
 }
 
 var defaultConfiguration = {
-  authenticate: function (request) {
+  authenticate: function () {
     return new Promise(function (resolve) {
       resolve(true)
     })
   },
 
-  fetchDocument: function (id) {
+  fetchDocument: function () {
     return new Promise(function (resolve) {
       resolve(false)
     })
   },
 
-  saveCommit: function (id, parent, commit) {
+  saveCommit: function () {
     return new Promise(function (resolve) {
       resolve(false)
     })
@@ -158,10 +158,14 @@ function flatten (arrayOfArrays) {
   }, [])
 }
 
-export function applyCommitSequence (commits, applyOperation) {
-  var operations = flatten(commits.map(function (x) {
+export function getAllOperationsInCommitSequence (commits) {
+  return flatten(commits.map(function (x) {
     return x.operations
   }))
+}
+
+export function applyCommitSequence (commits, applyOperation) {
+  var operations = getAllOperationsInCommitSequence(commits)
   if (operations.length == 1)
     return applyOperation({}, operations[0])
   else

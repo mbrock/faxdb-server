@@ -12,30 +12,30 @@ Feature: The Fax server works correctly
 
   Scenario: Request for unknown document yields 404
     Given the folder server test environment
-    When I make a request as John
-    And the request is for the document "foo"
+    When I am logged in as John
+    And I request the document "foo"
     Then the response status is 404
 
   Scenario: Request for bogus path yields 404
     Given the folder server test environment
     When there is a folder named "X" with id "1"
-    When I make a request as John
-    And the request is for the URL "/1/foo"
+    When I am logged in as John
+    And I request the URL "/1/foo"
     Then the response status is 404
 
   Scenario: Request for empty folder yields correct state
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
-    And I make a request as John
-    And the request is for the document "todo"
+    And I am logged in as John
+    And I request the document "todo"
     Then the response status is 200
     And the result is a folder document named "TODO"
 
   Scenario: Request for empty folder yields correct hash
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
-    And I make a request as John
-    And the request is for the document "todo"
+    And I am logged in as John
+    And I request the document "todo"
     Then the response status is 200
     And the result has a hash that matches commits:
       | Type   | Payload |
@@ -44,8 +44,8 @@ Feature: The Fax server works correctly
   Scenario: A folder can be renamed
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
-    And I make a request as John
-    And the request is an update to "todo" with operations:
+    And I am logged in as John
+    And I request an update to "todo" with operations:
       | Type   | Payload |
       | rename | DONE    |
     Then the response status is 200
@@ -57,8 +57,8 @@ Feature: The Fax server works correctly
   Scenario: Conflict is detected
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
-    And I make a request as John
-    And the request is a conflicting update to "todo" with operations:
+    And I am logged in as John
+    And I request a conflicting update to "todo" with operations:
       | Type   | Payload |
       | rename | DONE    |
     Then the response status is 409
@@ -69,6 +69,6 @@ Feature: The Fax server works correctly
   Scenario: Bogus updates are detected
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
-    And I make a request as John
-    And the request is a bogus update to "todo"
+    And I am logged in as John
+    And I request a bogus update to "todo"
     Then the response status is 400

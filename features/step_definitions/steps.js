@@ -11,18 +11,18 @@ function setupFolderDatabase () {
   database = faxMemory.create(folderExample)
 }
 
-function flatten (arrayOfArrays) {
-  return arrayOfArrays.reduce(function (a, b) {
-    return a.concat(b)
-  }, [])
+function tableToOperations (table) {
+  return table.rows().map(function (row) {
+    return { type: row[0], payload: row[1] }
+  })
 }
 
 function tableToCommitSequence (table) {
   var parent = null
-  return table.rows().map(function (row) {
+  return tableToOperations(table).map(function (operation) {
     var commit = {
       parent: parent,
-      operations: [{ type: row[0], payload: row[1] }]
+      operations: [operation]
     }
     parent = faxdb.hash(commit)
     return commit
@@ -69,7 +69,7 @@ module.exports = function() {
     }
   )
   
-  this.When(/^I make a request as John$/, function () {
+  this.When(/^I am logged in as John$/, function () {
     delete this.response
     this.request = {
       headers: {
@@ -83,24 +83,22 @@ module.exports = function() {
     this.request = {}
   })
   
-  this.When(/^the request is for the document "([^"]*)"$/, function (id) {
+  this.When(/^I request the document "([^"]*)"$/, function (id) {
     this.request.method = "GET"
     this.request.url = "/" + id
   })
 
-  this.When(/^the request is for the URL "([^"]*)"$/, function (url) {
+  this.When(/^I request the URL "([^"]*)"$/, function (url) {
     this.request.method = "GET"
     this.request.url = url
   })
 
   this.When(
-    /^the request is an update to "([^"]*)" with operations:$/,
+    /^I request an update to "([^"]*)" with operations:$/,
     function (id, table) {
       var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
-      var operations = flatten(tableToCommitSequence(table).map(function (x) {
-        return x.operations
-      }))
+      var operations = tableToOperations(table)
 
       var body = JSON.stringify({
         commit: {
@@ -116,13 +114,11 @@ module.exports = function() {
   )
   
   this.When(
-    /^the request is a conflicting update to "([^"]*)" with operations:$/,
+    /^I request a conflicting update to "([^"]*)" with operations:$/,
     function (id, table) {
       var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
-      var operations = flatten(tableToCommitSequence(table).map(function (x) {
-        return x.operations
-      }))
+      var operations = tableToOperations(table)
       var body = JSON.stringify({
         commit: {
           parent: faxdb.hash({
@@ -140,7 +136,7 @@ module.exports = function() {
   )
   
   this.When(
-    /^the request is a bogus update to "([^"]*)"$/,
+    /^I request a bogus update to "([^"]*)"$/,
     function (id) {
       var body = JSON.stringify({
         bogus: "nonsense"
