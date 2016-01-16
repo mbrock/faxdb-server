@@ -1,6 +1,6 @@
-var faxdb = require("../../index.js")
-var faxMemory = require("../../memory-db.js")
-var folderExample = require("../../examples/folders.js")
+var faxdb = require("../../lib/index")
+var faxMemory = require("../../lib/memory-db")
+var folderExample = require("../../lib/examples/folders")
 
 var mockHttp = require("mock-http")
 var assert = require("assert")

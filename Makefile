@@ -1,14 +1,16 @@
 format ?= pretty
 
 testfiles = features/fax.feature features/step_definitions/steps.js
-all: index.js memory-db.js test.js $(testfiles) schema.md
-%.js: %.es; node_modules/.bin/babel $< > $@
+examples = lib/examples/folders.js
+src = lib/index.js lib/memory-db.js lib/test.js
+all: $(src) $(examples) $(testfiles) schema.md
+lib/%.js: src/%.es; mkdir -p `dirname $@`; node_modules/.bin/babel $< > $@
 
 test:
-	node test | bash -ex ./test.sh
+	node lib/test | bash -ex ./test.sh
 	echo
 	node_modules/.bin/cucumberjs --format=$(format)
 
-schema.md: schema.js
-	node schema > schema.md
+schema.md: lib/schema.js
+	node lib/schema > schema.md
 
