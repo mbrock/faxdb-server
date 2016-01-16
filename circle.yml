@@ -4,5 +4,4 @@ machine:
 test:
   override:
     - mkdir -p $CIRCLE_TEST_REPORTS/cucumber
-    - node_modules/.bin/cucumberjs --format json --out \
-      $CIRCLE_TEST_REPORTS/cucumber/tests.cucumber
+    - node_modules/.bin/cucumberjs --format json:$CIRCLE_TEST_REPORTS/cucumber/tests.cucumber
