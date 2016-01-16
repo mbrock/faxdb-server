@@ -4,7 +4,7 @@
   "description": "faxdb as a Node server library",
   "author": "Mikael Brockman",
   "scripts": {
-    "compile": "make",
+    "prepublish": "make",
     "test": "make test"
   },
   "license": "MIT",
