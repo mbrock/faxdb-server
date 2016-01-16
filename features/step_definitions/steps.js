@@ -1,48 +1,20 @@
 var faxdb = require("../../index.js")
+var faxMemory = require("../../memory-db.js")
+var folderExample = require("../../examples/folders.js")
+
 var mockHttp = require("mock-http")
 var assert = require("assert")
 
 var database
-var defaultFolderDatabase = {
-  documents: {}
-}
 
 function setupFolderDatabase () {
-  database = Object.assign({}, defaultFolderDatabase)
-}
-
-function applyFolderOperation (state, operation) {
-  if (operation.type == "rename")
-    return Object.assign({}, state, { name: operation.payload })
-  else
-    throw new Error(
-      "Unknown folder operation type: " + JSON.stringify(operation.type)
-    )
+  database = faxMemory.create(folderExample)
 }
 
 function flatten (arrayOfArrays) {
   return arrayOfArrays.reduce(function (a, b) {
     return a.concat(b)
   }, [])
-}
-
-function applyFolderCommitSequence (commits) {
-  operations = flatten(commits.map(function (x) {
-    return x.operations
-  }))
-  if (operations.length == 1)
-    return applyFolderOperation({}, operations[0])
-  else
-    return operations.reduce(applyFolderOperation, {})
-}
-
-function hashCommit (commit) {
-  return faxdb.hash(commit.operations, commit.parent)
-}
-
-function hashCommitSequence (commits) {
-  // XXX: should verify
-  return hashCommit(commits[commits.length - 1])
 }
 
 function tableToCommitSequence (table) {
@@ -52,51 +24,24 @@ function tableToCommitSequence (table) {
       parent: parent,
       operations: [{ type: row[0], payload: row[1] }]
     }
-    parent = hashCommit(commit)
+    parent = faxdb.hash(commit)
     return commit
   })
 }
 
-var folderServerConfiguration = {
-  authenticate: function (request) {
-    return new Promise(function (resolve, reject) {
-      if (request.getHeader("X-User"))
-        resolve(true)
-      else
-        resolve(false)
-    })
-  },
-
-  saveCommit: function (id, commit) {
-    return new Promise(function (resolve, reject) {
-      var document = database.documents[id]
-      var head = hashCommit(document.commits[document.commits.length - 1])
-      if (head == commit.parent) {
-        database.documents[id].commits.push(commit)
-        resolve(true)
-      } else {
-        resolve(false)
-      }
-    })
-  },
-
-  fetchDocument: function (id) {
-    return new Promise(function (resolve, reject) {
-      if (database.documents.hasOwnProperty(id)) {
-        var document = database.documents[id]
-
-        try {
-          resolve({
-            head: hashCommitSequence(document.commits),
-            state: applyFolderCommitSequence(document.commits)
-          })
-        } catch (error) {
-          reject(error)
-        }
-      } else {
-        resolve(false)
-      }
-    })
+function folderServerConfiguration () {
+  return {
+    authenticate: function (request) {
+      return new Promise(function (resolve, reject) {
+        if (request.getHeader("X-User"))
+          resolve(true)
+        else
+          resolve(false)
+      })
+    },
+  
+    saveCommit: database.saveCommit.bind(database),
+    fetchDocument: database.fetchDocument.bind(database)
   }
 }
 
@@ -104,7 +49,7 @@ module.exports = function() {
   this.Given(/^the folder server test environment$/, function () {
     var world = this
     setupFolderDatabase()
-    return faxdb.create(folderServerConfiguration).then(function(fax) {
+    return faxdb.create(folderServerConfiguration()).then(function(fax) {
       world.fax = fax
     })
   })
@@ -113,14 +58,14 @@ module.exports = function() {
     /^there is a folder named "([^"]*)" with id "([^"]*)"$/,
     function (name, id) {
       var operations = [{ type: "rename", payload: name }]
-      database.documents[id] = {
+      database.setDocument(id, {
         commits: [
           {
             parent: null,
             operations: operations,
           }
         ]
-      }
+      })
     }
   )
   
@@ -151,7 +96,7 @@ module.exports = function() {
   this.When(
     /^the request is an update to "([^"]*)" with operations:$/,
     function (id, table) {
-      var commits = database.documents[id].commits
+      var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
       var operations = flatten(tableToCommitSequence(table).map(function (x) {
         return x.operations
@@ -159,7 +104,7 @@ module.exports = function() {
 
       var body = JSON.stringify({
         commit: {
-          parent: hashCommit(parent),
+          parent: faxdb.hash(parent),
           operations: operations
         }
       })
@@ -173,12 +118,14 @@ module.exports = function() {
   this.When(
     /^the request is a conflicting update to "([^"]*)" with operations:$/,
     function (id, table) {
-      var commits = database.documents[id].commits
+      var commits = database.getDocument(id).commits
       var parent = commits[commits.length - 1]
-      var operations = flatten(tableToCommitSequence(table))
+      var operations = flatten(tableToCommitSequence(table).map(function (x) {
+        return x.operations
+      }))
       var body = JSON.stringify({
         commit: {
-          parent: hashCommit({
+          parent: faxdb.hash({
             parent: parent,
             operations: [{ type: "bogus" }]
           }),
@@ -246,7 +193,8 @@ module.exports = function() {
     /^the result has a hash that matches commits:$/,
     function (table) {
       var result = this.getResult()
-      var hash = hashCommitSequence(tableToCommitSequence(table))
+      var commits = tableToCommitSequence(table)
+      var hash = faxdb.hash(commits[commits.length - 1])
       assert.deepEqual(result.document.head, hash)
     }
   )
@@ -255,7 +203,7 @@ module.exports = function() {
     /^the document "([^"]+)" has commits:$/,
     function (id, table) {
       assert.deepEqual(
-        database.documents[id].commits,
+        database.getDocument(id).commits,
         tableToCommitSequence(table)
       )
     }

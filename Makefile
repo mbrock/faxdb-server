@@ -1,7 +1,7 @@
 format ?= pretty
 
 testfiles = features/fax.feature features/step_definitions/steps.js
-all: index.js test.js $(testfiles) schema.md
+all: index.js memory-db.js test.js $(testfiles) schema.md
 %.js: %.es; node_modules/.bin/babel $< > $@
 
 test:

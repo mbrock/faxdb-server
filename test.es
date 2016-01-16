@@ -11,7 +11,7 @@ import * as faxdb from "./index"
 import * as assert from "assert"
 
 assert.equal(
-  faxdb.hash([0], "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d"),
+  faxdb.hash({ operations: [0], parent: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d" }),
   "e9c24f86b79b07a943aeacce1929a7caecd89f57"
 )
 

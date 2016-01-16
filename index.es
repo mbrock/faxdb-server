@@ -128,11 +128,11 @@ export function create(givenConfiguration) {
   })
 }
 
-export function hash(operations, oldHash) {
+export function hash(commit) {
   let sha256 = createHash("sha256")
-  let json = JSON.stringify(operations)
-  if (oldHash) {
-    sha256.update(oldHash, "utf8")
+  let json = JSON.stringify(commit.operations)
+  if (commit.parent) {
+    sha256.update(commit.parent, "utf8")
   }
   sha256.update(json, "utf8")
   return sha256.digest("hex").substr(0, 40)
@@ -147,3 +147,20 @@ function slurpJSON(request) {
     request.on("error", error => reject(error))
   })
 }
+
+function flatten (arrayOfArrays) {
+  return arrayOfArrays.reduce(function (a, b) {
+    return a.concat(b)
+  }, [])
+}
+
+export function applyCommitSequence (commits, applyOperation) {
+  var operations = flatten(commits.map(function (x) {
+    return x.operations
+  }))
+  if (operations.length == 1)
+    return applyOperation({}, operations[0])
+  else
+    return operations.reduce(applyOperation, {})
+}
+
