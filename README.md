@@ -1,6 +1,8 @@
 
 # Fax: a semi-centralized synchronization system
 
+[![Circle CI](https://circleci.com/gh/mbrock/faxdb-server.svg?style=svg)](https://circleci.com/gh/mbrock/faxdb-server)
+
 Fax is concerned with synchronizing facts in real-time among web
 clients, using a central consensus server, and with eventual consistency
 feeding some slower indexing database.
