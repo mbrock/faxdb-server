@@ -7,9 +7,9 @@
 // This software may be modified and distributed under the terms
 // of the MIT license.  See the LICENSE file for details.
 
-const schemaUrl = "http://json-schema.org/draft-04/schema#"
+var schemaUrl = "http://json-schema.org/draft-04/schema#"
 
-export const shallowDocumentClone = {
+export var shallowDocumentClone = {
   "$schema": schemaUrl,
   title: "Fax Document",
   description: "A shallow clone of a Fax document",
@@ -33,7 +33,7 @@ export const shallowDocumentClone = {
   }
 }
 
-export const singleCommit = {
+export var singleCommit = {
   "$schema": schemaUrl,
   title: "Single Fax Commit",
   description: "The properties of a single document commit",
@@ -61,7 +61,7 @@ export const singleCommit = {
   }
 }
 
-export const anyProtocolObject = {
+export var anyProtocolObject = {
   "$schema": schemaUrl,
   title: "Fax protocol object",
   type: "object",
