@@ -220,4 +220,16 @@ module.exports = function() {
       )
     }
   )
+
+  this.When(/^there is a document with several commits$/, function (callback) {
+    callback.pending();
+  });
+
+  this.When(/^I request the commits since the second commit$/, function (callback) {
+    callback.pending();
+  });
+
+  this.Then(/^I get the correct sequence of commits$/, function (callback) {
+    callback.pending();
+  });
 }

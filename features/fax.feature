@@ -77,3 +77,11 @@ Feature: The Fax server works correctly
     And I am logged in as John
     And I request a bogus update to "folders/todo"
     Then the response status is 400
+
+  Scenario: Pull query works
+    Given the folder server test environment
+    And I am logged in as John
+    When there is a document with several commits
+    And I request the commits since the second commit
+    Then I get the correct sequence of commits
+
