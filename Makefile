@@ -17,5 +17,5 @@ schema.md: lib/schema.js
 
 test-docker:
 	docker build -t faxdb-server .
-	docker run -it --rm faxdb-server make all test
+	docker run -it --rm faxdb-server make all test format=summary
 
