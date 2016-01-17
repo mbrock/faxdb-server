@@ -13,21 +13,33 @@ Feature: The Fax server works correctly
   Scenario: Request for unknown document yields 404
     Given the folder server test environment
     When I am logged in as John
-    And I request the document "foo"
+    And I request the document "folders/foo"
     Then the response status is 404
 
   Scenario: Request for bogus path yields 404
     Given the folder server test environment
     When there is a folder named "X" with id "1"
     When I am logged in as John
-    And I request the URL "/1/foo"
+    And I request the URL "/folders/1/foo"
+    Then the response status is 404
+
+  Scenario: Request for document in nonexisting namespace yields 404
+    Given the folder server test environment
+    When I am logged in as John
+    And I request the URL "/gizmoids/foo"
+    Then the response status is 404
+
+  Scenario: Update to document in nonexisting namespace yields 404
+    Given the folder server test environment
+    When I am logged in as John
+    And I request a syntactically valid update to "gizmoids/foo"
     Then the response status is 404
 
   Scenario: Request for empty folder yields correct state
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
-    And I request the document "todo"
+    And I request the document "folders/todo"
     Then the response status is 200
     And the result is a folder document named "TODO"
 
@@ -35,7 +47,7 @@ Feature: The Fax server works correctly
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
-    And I request the document "todo"
+    And I request the document "folders/todo"
     Then the response status is 200
     And the result has a hash that matches commits:
       | Type   | Payload |
@@ -45,11 +57,11 @@ Feature: The Fax server works correctly
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
-    And I request an update to "todo" with operations:
+    And I request an update to "folders/todo" with operations:
       | Type   | Payload |
       | rename | DONE    |
     Then the response status is 200
-    And the document "todo" has commits:
+    And the document "folders/todo" has commits:
       | Type   | Payload |
       | rename | TODO    |
       | rename | DONE    |
@@ -58,11 +70,11 @@ Feature: The Fax server works correctly
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
-    And I request a conflicting update to "todo" with operations:
+    And I request a conflicting update to "folders/todo" with operations:
       | Type   | Payload |
       | rename | DONE    |
     Then the response status is 409
-    And the document "todo" has commits:
+    And the document "folders/todo" has commits:
       | Type   | Payload |
       | rename | TODO    |
 
@@ -70,5 +82,5 @@ Feature: The Fax server works correctly
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
-    And I request a bogus update to "todo"
+    And I request a bogus update to "folders/todo"
     Then the response status is 400

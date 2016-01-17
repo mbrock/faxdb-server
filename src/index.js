@@ -55,16 +55,16 @@ var defaultConfiguration = {
   }
 }
 
-function fetchDocument(response, configuration, id) {
-  configuration.fetchDocument(id).then(document => {
-    if (document) {
+function fetchDocument(response, configuration, namespace, id) {
+  configuration.fetchDocument(namespace, id).then(result => {
+    if (typeof result == "object") {
       respondWithValidatedJson(
         response,
-        { document: document },
+        { document: result },
         validateCloneSchema
       )
     } else {
-      respond(response, 404)
+      respond(response, result)
     }
   }).catch(error => {
     console.warn(error.stack)
@@ -72,15 +72,11 @@ function fetchDocument(response, configuration, id) {
   })
 }
 
-function postCommit(response, configuration, id, request) {
+function postCommit(response, configuration, namespace, id, request) {
   slurpJSON(request).then(body => {
     if (validateCommitSchema(body)) {
-      configuration.saveCommit(id, body.commit).then(ok => {
-        if (ok) {
-          respond(response, 200)
-        } else {
-          respond(response, 409)
-        }
+      configuration.saveCommit(namespace, id, body.commit).then(status => {
+        respond(response, status)
       }).catch(error => {
         respond(response, 500)
       })
@@ -96,18 +92,20 @@ function postCommit(response, configuration, id, request) {
   })
 }
 
+const documentPattern = /^\/([^\/]+)\/([^\/]+)$/
+
 function handleAuthenticatedRequest(response, configuration, request) {
   if (request.method == "GET") {
     if (request.url == "/") {
       respond(response, 404)
-    } else if (request.url.match(/^\/([^/]+)$/)) {
-      fetchDocument(response, configuration, RegExp.$1)
+    } else if (request.url.match(documentPattern)) {
+      fetchDocument(response, configuration, RegExp.$1, RegExp.$2)
     } else {
       respond(response, 404, "Hello, world!\n")
     }
   } else if (request.method == "POST") {
-    if (request.url.match(/^\/([^/]+)$/)) {
-      postCommit(response, configuration, RegExp.$1, request)
+    if (request.url.match(documentPattern)) {
+      postCommit(response, configuration, RegExp.$1, RegExp.$2, request)
     } else {
       respond(response, 400)
     }

@@ -13,49 +13,63 @@ function getHead(commits) {
   return faxdb.hash(commits[commits.length - 1])
 }
 
-export function create(configuration) {
-  var database = { documents: {} }
+export function create(namespaces) {
+  var database = {}
+  for (var key in namespaces)
+    database[key] = { documents: {} }
 
+  function validateNamespace(namespace, resolve) {
+    if (!database[namespace]) {
+      resolve(404)
+      return false
+    } else {
+      return true
+    }
+  }
+  
   return {
-    setDocument: function(id, document) {
-      database.documents[id] = document
+    setDocument: function(namespace, id, document) {
+      database[namespace].documents[id] = document
     },
 
-    getDocument: function(id) {
-      return database.documents[id]
+    getDocument: function(namespace, id) {
+      return database[namespace].documents[id]
     },
 
-    saveCommit: function(id, commit) {
-      return new Promise(function(resolve, reject) {
-        var document = database.documents[id]
-        var head = faxdb.hash(document.commits[document.commits.length - 1])
-        if (head == commit.parent) {
-          database.documents[id].commits.push(commit)
-          resolve(true)
-        } else {
-          resolve(false)
+    saveCommit: function(namespace, id, commit) {
+      return new Promise((resolve, reject) => {
+        if (validateNamespace(namespace, resolve)) {
+          var document = this.getDocument(namespace, id)
+          var head = faxdb.hash(document.commits[document.commits.length - 1])
+          if (head == commit.parent) {
+            document.commits.push(commit)
+            resolve(200)
+          } else {
+            resolve(409)
+          }
         }
       })
     },
 
-    fetchDocument: function(id) {
+    fetchDocument: function(namespace, id) {
       return new Promise(function(resolve, reject) {
-        if (database.documents.hasOwnProperty(id)) {
-          var document = database.documents[id]
-    
-          try {
-            resolve({
-              head: getHead(document.commits),
-              state: faxdb.applyCommitSequence(
-                document.commits,
-                configuration.applyOperation
-              )
-            })
-          } catch (error) {
-            reject(error)
+        if (validateNamespace(namespace, resolve)) {
+          var document = database[namespace].documents[id]
+          if (document) {
+            try {
+              resolve({
+                head: getHead(document.commits),
+                state: faxdb.applyCommitSequence(
+                  document.commits,
+                  namespaces[namespace].applyOperation
+                )
+              })
+            } catch (error) {
+              reject(error)
+            }
+          } else {
+            resolve(404)
           }
-        } else {
-          resolve(false)
         }
       })
     }

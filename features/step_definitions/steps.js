@@ -8,7 +8,9 @@ var assert = require("assert")
 var database
 
 function setupFolderDatabase() {
-  database = faxMemory.create(folderExample)
+  database = faxMemory.create({
+    folders: folderExample
+  })
 }
 
 function tableToOperations(table) {
@@ -58,7 +60,7 @@ module.exports = function() {
     /^there is a folder named "([^"]*)" with id "([^"]*)"$/,
     function(name, id) {
       var operations = [{ type: "rename", payload: name }]
-      database.setDocument(id, {
+      database.setDocument("folders", id, {
         commits: [
           {
             parent: null,
@@ -94,9 +96,9 @@ module.exports = function() {
   })
 
   this.When(
-    /^I request an update to "([^"]*)" with operations:$/,
-    function(id, table) {
-      var commits = database.getDocument(id).commits
+    /^I request an update to "([^"\/]+)\/([^"]+)" with operations:$/,
+    function(namespace, id, table) {
+      var commits = database.getDocument(namespace, id).commits
       var parent = commits[commits.length - 1]
       var operations = tableToOperations(table)
 
@@ -108,42 +110,56 @@ module.exports = function() {
       })
 
       this.request.method = "POST"
-      this.request.url = "/" + id
+      this.request.url = "/" + namespace + "/" + id
       this.request.buffer = new Buffer(body)
     }
   )
   
   this.When(
-    /^I request a conflicting update to "([^"]*)" with operations:$/,
-    function(id, table) {
-      var commits = database.getDocument(id).commits
-      var parent = commits[commits.length - 1]
+    /^I request a conflicting update to "([^"\/]+)\/([^"]+)" with operations:$/,
+    function(namespace, id, table) {
       var operations = tableToOperations(table)
       var body = JSON.stringify({
         commit: {
           parent: faxdb.hash({
-            parent: parent,
-            operations: [{ type: "bogus" }]
+            parent: "",
+            operations: [{ type: "bogus-root" }]
           }),
           operations: operations,
         }
       })
 
       this.request.method = "POST"
-      this.request.url = "/" + id
+      this.request.url = "/" + namespace + "/" + id
       this.request.buffer = new Buffer(body)
     }
   )
   
   this.When(
-    /^I request a bogus update to "([^"]*)"$/,
-    function(id) {
+    /^I request a bogus update to "([^"\/]+)\/([^"]+)"$/,
+    function(namespace, id) {
       var body = JSON.stringify({
         bogus: "nonsense"
       })
 
       this.request.method = "POST"
-      this.request.url = "/" + id
+      this.request.url = "/" + namespace + "/" + id
+      this.request.buffer = new Buffer(body)
+    }
+  )
+
+  this.When(
+    /^I request a syntactically valid update to "([^"\/]+)\/([^"]+)"$/,
+    function(namespace, id) {
+      var body = JSON.stringify({
+        commit: {
+          parent: null,
+          operations: [{ type: "bogus" }]
+        }
+      })
+
+      this.request.method = "POST"
+      this.request.url = "/" + namespace + "/" + id
       this.request.buffer = new Buffer(body)
     }
   )
@@ -196,10 +212,10 @@ module.exports = function() {
   )
 
   this.Then(
-    /^the document "([^"]+)" has commits:$/,
-    function(id, table) {
+    /^the document "([^"\/]+)\/([^"]+)" has commits:$/,
+    function(namespace, id, table) {
       assert.deepEqual(
-        database.getDocument(id).commits,
+        database.getDocument(namespace, id).commits,
         tableToCommitSequence(table)
       )
     }
