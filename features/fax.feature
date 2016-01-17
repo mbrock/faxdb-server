@@ -35,20 +35,13 @@ Feature: The Fax server works correctly
     And I request a syntactically valid update to "gizmoids/foo"
     Then the response status is 404
 
-  Scenario: Request for empty folder yields correct state
+  Scenario: Request for empty folder yields correct document
     Given the folder server test environment
     When there is a folder named "TODO" with id "todo"
     And I am logged in as John
     And I request the document "folders/todo"
     Then the response status is 200
     And the result is a folder document named "TODO"
-
-  Scenario: Request for empty folder yields correct hash
-    Given the folder server test environment
-    When there is a folder named "TODO" with id "todo"
-    And I am logged in as John
-    And I request the document "folders/todo"
-    Then the response status is 200
     And the result has a hash that matches commits:
       | Type   | Payload |
       | rename | TODO    |
